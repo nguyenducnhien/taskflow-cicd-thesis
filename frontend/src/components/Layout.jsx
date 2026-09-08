@@ -11,7 +11,7 @@ export default function Layout() {
       <nav className="navbar">
         <div className="navbar-links">
           <NavLink to="/" end>
-            Home
+            Dashboard
           </NavLink>
           <NavLink to="/projects">Projects</NavLink>
         </div>

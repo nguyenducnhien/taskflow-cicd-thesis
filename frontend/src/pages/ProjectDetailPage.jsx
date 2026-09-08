@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import * as projectApi from '../api/project.api';
 import { toDateInputValue } from '../api/project.api';
@@ -185,14 +185,19 @@ export default function ProjectDetailPage() {
               Owner: {project.owner_name} · <span className={`badge badge-${project.status}`}>{project.status}</span>
             </p>
           </div>
-          {canManage && (
-            <div className="form-row">
-              <button onClick={startEdit}>Edit</button>
-              <button className="btn-danger" onClick={handleDelete}>
-                Delete
-              </button>
-            </div>
-          )}
+          <div className="form-row">
+            <Link to={`/projects/${id}/board`}>
+              <button type="button">Board</button>
+            </Link>
+            {canManage && (
+              <>
+                <button onClick={startEdit}>Edit</button>
+                <button className="btn-danger" onClick={handleDelete}>
+                  Delete
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
 
