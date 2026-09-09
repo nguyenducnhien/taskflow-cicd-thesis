@@ -37,6 +37,14 @@ export function AuthProvider({ children }) {
     return loggedInUser;
   }
 
+  async function register(name, email, password) {
+    const { user: newUser, token } = await authApi.register(name, email, password);
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(newUser));
+    setUser(newUser);
+    return newUser;
+  }
+
   function logout() {
     // JWT auth is stateless server-side (see backend auth.controller.js
     // logout()) — there is no server session to end, so logging out is
@@ -46,8 +54,16 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
+  // Called after a successful PUT /auth/profile so the navbar and any other
+  // consumer of useAuth().user reflect the change immediately, without a
+  // full page reload or a redundant GET /auth/me.
+  function updateUser(updatedUser) {
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

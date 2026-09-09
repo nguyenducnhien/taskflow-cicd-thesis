@@ -14,11 +14,12 @@ export default function Layout() {
             Dashboard
           </NavLink>
           <NavLink to="/projects">Projects</NavLink>
+          {user.role === 'Admin' && <NavLink to="/admin/users">Admin</NavLink>}
         </div>
         <div className="navbar-user">
-          <span>
+          <NavLink to="/profile">
             {user.name} ({user.role})
-          </span>
+          </NavLink>
           <button onClick={logout}>Log out</button>
         </div>
       </nav>

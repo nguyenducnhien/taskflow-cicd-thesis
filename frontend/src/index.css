@@ -132,6 +132,16 @@ label {
   font-size: 0.875rem;
 }
 
+.navbar-user a {
+  color: var(--text);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.navbar-user a:hover {
+  color: var(--accent);
+}
+
 .page-header {
   display: flex;
   align-items: flex-start;
@@ -212,6 +222,11 @@ label {
 .badge-archived {
   background: #f3f4f6;
   color: #4b5563;
+}
+
+.badge-locked {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 .btn-danger {

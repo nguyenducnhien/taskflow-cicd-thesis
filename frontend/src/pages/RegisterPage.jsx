@@ -2,24 +2,30 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-export default function LoginPage() {
+export default function RegisterPage() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const { login } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await login(email, password);
+      await register(name, email, password);
       navigate('/', { replace: true });
     } catch (err) {
-      // err.response.data.error is { code, message } per backend/src/middleware/errorHandler.js.
-      // A network failure (backend down) has no err.response at all.
       const message = err.response?.data?.error?.message || 'Could not reach the server';
       setError(message);
     } finally {
@@ -31,9 +37,20 @@ export default function LoginPage() {
     <div className="auth-page">
       <form className="auth-form" onSubmit={handleSubmit}>
         <h1>Task Manager</h1>
-        <p className="auth-subtitle">Sign in to continue</p>
+        <p className="auth-subtitle">Create your account</p>
 
         {error && <div className="form-error">{error}</div>}
+
+        <label htmlFor="name">Name</label>
+        <input
+          id="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+          minLength={2}
+          maxLength={100}
+          autoComplete="name"
+        />
 
         <label htmlFor="email">Email</label>
         <input
@@ -52,15 +69,27 @@ export default function LoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          autoComplete="current-password"
+          minLength={8}
+          autoComplete="new-password"
+        />
+
+        <label htmlFor="confirm-password">Confirm password</label>
+        <input
+          id="confirm-password"
+          type="password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          minLength={8}
+          autoComplete="new-password"
         />
 
         <button type="submit" disabled={submitting}>
-          {submitting ? 'Signing in...' : 'Sign in'}
+          {submitting ? 'Creating account...' : 'Register'}
         </button>
 
         <p className="auth-subtitle">
-          Don't have an account? <Link to="/register">Register</Link>
+          Already have an account? <Link to="/login">Sign in</Link>
         </p>
       </form>
     </div>
