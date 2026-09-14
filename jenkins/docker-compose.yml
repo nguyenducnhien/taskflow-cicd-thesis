@@ -1,0 +1,27 @@
+# Runs Jenkins itself, as local dev infrastructure for this thesis — not
+# part of the task-manager app being shipped (that stack has its own
+# docker-compose.yml at the repo root). Start with:
+#   docker compose -f jenkins/docker-compose.yml up -d --build
+services:
+  jenkins:
+    build: .
+    container_name: jenkins
+    restart: unless-stopped
+    # Runs as root so the process can read/write the host's docker.sock
+    # below (Docker Desktop's socket permissions vary by host and aren't
+    # reliably accessible to the image's non-root "jenkins" user). This is
+    # a deliberate simplification for a local single-user dev pipeline; a
+    # production Jenkins would instead scope a matching "docker" group GID
+    # or use a rootless Docker context.
+    user: root
+    ports:
+      - "8080:8080" # Jenkins web UI
+      - "50000:50000" # agent port (unused with the single built-in node; kept for parity with standard Jenkins setups)
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      # Docker-outside-of-Docker: lets pipeline stages run `docker build`
+      # against the HOST's Docker daemon instead of needing a nested one.
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  jenkins_home:
