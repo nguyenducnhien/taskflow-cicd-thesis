@@ -65,7 +65,15 @@ test.describe('Task', () => {
     await createTaskViaUI(page, taskTitle);
 
     const card = taskCard(page, taskTitle);
-    await card.locator('select').selectOption('In Progress');
+    // TaskBoardPage applies the status change optimistically (UI updates
+    // before the PATCH resolves — see handleStatusChange), so the reload
+    // below must wait for that request to actually land; otherwise a fast
+    // reload can cancel the in-flight PATCH and the reloaded page would
+    // still show the old status.
+    await Promise.all([
+      page.waitForResponse((res) => res.request().method() === 'PATCH' && res.url().includes('/status')),
+      card.locator('select').selectOption('In Progress'),
+    ]);
 
     const targetColumn = boardColumn(page, 'In Progress');
     await expect(targetColumn.getByRole('link', { name: taskTitle, exact: true })).toBeVisible();

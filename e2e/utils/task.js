@@ -37,3 +37,13 @@ export function taskCard(page, title) {
 export function boardColumn(page, status) {
   return page.locator('.board-column').filter({ has: page.getByRole('heading', { name: new RegExp(`^${status}`) }) });
 }
+
+// Adds an existing label to the task currently open on TaskDetailPage. The
+// "Add a label..." select has no <label> (see TaskDetailPage.jsx), so it's
+// scoped via the form that contains the "Add" button instead of getByLabel.
+export async function addLabelViaUI(page, labelName) {
+  const form = page.locator('form').filter({ has: page.getByRole('button', { name: 'Add', exact: true }) });
+  await form.locator('select').selectOption({ label: labelName });
+  await form.getByRole('button', { name: 'Add', exact: true }).click();
+  await expect(page.locator('.chip').filter({ hasText: labelName })).toBeVisible();
+}
