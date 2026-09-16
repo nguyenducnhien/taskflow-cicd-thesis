@@ -18,6 +18,18 @@ RUN apt-get update && \
     apt-get install -y docker-ce-cli docker-compose-plugin && \
     rm -rf /var/lib/apt/lists/*
 
+# Node.js 20 LTS — the pipeline's Build/Test stages run npm directly on
+# this controller. A larger multi-project Jenkins would instead use
+# ephemeral per-stage Docker agents for this, but that needs a bind mount
+# of the Jenkins workspace into a *sibling* container, which requires a
+# HOST filesystem path — this Jenkins controller's own workspace lives
+# inside a named Docker volume (jenkins_home), which has no such host path
+# to hand to a sibling container. Installing Node.js directly here avoids
+# that problem entirely for this project's scope.
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    rm -rf /var/lib/apt/lists/*
+
 # Preinstall the plugins the pipeline will need, so the first Jenkinsfile
 # run doesn't stall on a plugin-install prompt. (workflow-aggregator +
 # git are already bundled by the "suggested plugins" setup wizard step;

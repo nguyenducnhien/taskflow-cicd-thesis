@@ -1,0 +1,70 @@
+# The task-manager APP stack (mysql + backend + frontend) — separate from
+# jenkins/docker-compose.yml, which only runs the CI server itself.
+#
+# Local use (human, browser on this same machine):
+#   docker compose up -d --build
+#   -> frontend http://localhost:3000, backend http://localhost:5000/api
+#
+# CI use (Jenkinsfile "Run Playwright Tests" stage): Jenkins runs as its own
+# container, so its "localhost" is NOT this host's localhost — sibling
+# containers' published ports are reached via Docker Desktop's
+# host.docker.internal instead. The Jenkinsfile sets VITE_API_BASE_URL and
+# CORS_ORIGIN to host.docker.internal URLs before calling `docker compose
+# up`; a plain local run (no env vars set) falls back to localhost below.
+#
+# No `container_name:` on any service on purpose — Jenkins runs this same
+# file with `-p taskmanager-ci-<build number>` so each CI run gets its own
+# uniquely-named containers/volumes instead of colliding with a container
+# name you're already using for a manual run. Host ports (3000/5000) are
+# still fixed, though, so a manual `docker compose up` and a Jenkins build
+# still can't run at the same time — stop one before starting the other.
+services:
+  mysql:
+    build: ./database
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: changeme
+    # No host port published: only the `backend` service needs to reach
+    # this (over the internal Docker network, as host "mysql") — matches
+    # the NFR "DB not exposed to internet", and avoids clashing with any
+    # MySQL already installed natively on the host (as here).
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pchangeme"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      PORT: 5000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: changeme
+      DB_NAME: task_manager_db
+      JWT_SECRET: dev_only_change_me_in_real_deployment
+      JWT_EXPIRES_IN: 1d
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    ports:
+      - "5000:5000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:5000/api}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "3000:80"
+
+volumes:
+  mysql_data:

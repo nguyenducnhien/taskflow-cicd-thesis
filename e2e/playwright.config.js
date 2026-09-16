@@ -12,7 +12,13 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: [['html', { open: 'never' }], ['list']],
+  // 'junit' feeds Jenkins' `junit` pipeline step (pass/fail trend graph);
+  // 'html' feeds the `publishHTML` step (full report with traces/screenshots).
+  reporter: [
+    ['html', { open: 'never' }],
+    ['list'],
+    ['junit', { outputFile: 'test-results/junit.xml' }],
+  ],
   use: {
     baseURL: FRONTEND_URL,
     trace: 'on-first-retry',
