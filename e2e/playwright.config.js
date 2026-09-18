@@ -12,6 +12,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
+  // Locally, Chromium is the only heavy thing competing for CPU/RAM, so the
+  // default (half the CPU cores) is fine. In the Jenkins container, the same
+  // machine is ALSO running the Jenkins JVM plus the mysql/backend/frontend
+  // containers this suite is testing against — capping workers leaves them
+  // more headroom instead of maximizing Playwright's own parallelism.
+  workers: process.env.CI ? 4 : undefined,
   // 'junit' feeds Jenkins' `junit` pipeline step (pass/fail trend graph);
   // 'html' feeds the `publishHTML` step (full report with traces/screenshots).
   reporter: [

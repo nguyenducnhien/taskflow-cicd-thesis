@@ -14,6 +14,22 @@ services:
     # production Jenkins would instead scope a matching "docker" group GID
     # or use a rootless Docker context.
     user: root
+    environment:
+      # Jenkins applies a strict Content-Security-Policy to anything served
+      # under /userContent, archived artifacts, and HTML Publisher reports
+      # (hudson.model.DirectoryBrowserSupport.CSP) — it blocks the inline
+      # <script>/<style> the Playwright HTML report bundles into its single
+      # index.html, which is what showed up as a blank/black report page.
+      # Setting this JVM system property to an empty string disables that
+      # CSP for those served files. This is set here (JAVA_OPTS, read once
+      # at JVM startup) instead of via the Script Console specifically so it
+      # survives a container recreate — the Script Console's
+      # System.setProperty only lasts until the JVM restarts.
+      # Trade-off: this trusts everything Jenkins serves under those paths
+      # (fine for this single-developer local instance publishing only its
+      # own Playwright reports; a shared/public Jenkins should scope a
+      # narrower CSP instead of disabling it outright).
+      - JAVA_OPTS=-Dhudson.model.DirectoryBrowserSupport.CSP=
     ports:
       - "8080:8080" # Jenkins web UI
       - "50000:50000" # agent port (unused with the single built-in node; kept for parity with standard Jenkins setups)

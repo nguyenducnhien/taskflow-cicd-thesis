@@ -55,12 +55,30 @@ pipeline {
       }
       steps {
         sh 'docker compose -p $COMPOSE_PROJECT up -d --build'
+        // NOT /api/health: that route (app.js) replies without touching the
+        // DB at all, so it can say "ready" while the backend's mysql2 pool
+        // hasn't made its first real connection yet — a gap that showed up
+        // as every single test needing a retry on Jenkins (passing locally
+        // every time) even though the app itself has no bug. Hitting
+        // /api/auth/login instead forces a real query (findUserWithRoleByEmail)
+        // before we proceed, so "ready" here means the whole chain — Express
+        // + mysql2 pool + MySQL — actually answered, not just that Express
+        // is listening. A bogus login always resolves 401 once the DB
+        // round-trip succeeds; anything else (timeout, 502/connection reset)
+        // means it's still cold.
         sh '''
           for i in $(seq 1 30); do
-            curl -sf http://host.docker.internal:5000/api/health && exit 0
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+              http://host.docker.internal:5000/api/auth/login \
+              -H "Content-Type: application/json" \
+              -d '{"email":"healthcheck@nonexistent.invalid","password":"x"}')
+            if [ "$STATUS" = "401" ]; then
+              echo "Backend + DB ready (got 401 from a real DB round-trip)"
+              exit 0
+            fi
             sleep 2
           done
-          echo "Backend never became healthy" >&2
+          echo "Backend/DB never became ready (last status: $STATUS)" >&2
           exit 1
         '''
         dir('e2e') {
