@@ -18,12 +18,34 @@
 # name you're already using for a manual run. Host ports (3000/5000) are
 # still fixed, though, so a manual `docker compose up` and a Jenkins build
 # still can't run at the same time — stop one before starting the other.
+#
+# Production (AWS EC2): DB_PASSWORD/JWT_SECRET/CORS_ORIGIN/VITE_API_BASE_URL
+# and the BACKEND_BIND/FRONTEND_BIND host-bind addresses are all overridden
+# via a `.env` file created directly on the server (never committed — see
+# .gitignore's `**/.env`), instead of the placeholder defaults below. Local
+# dev needs none of that, so every var below still defaults to the same
+# localhost/"changeme" values as before.
+#
+# Every service also names its image explicitly (`image:`) instead of
+# letting Compose derive one from the directory name — this is what lets
+# the Jenkinsfile "Deploy to AWS EC2" stage `docker save` the exact images
+# Jenkins just built and `docker load` + `docker compose up` (no --build)
+# on the EC2 host: building the frontend (npm ci + vite build) ON a 1GB
+# free-tier instance is what triggered a real out-of-memory kill of mysqld
+# during manual deployment — see chat/report for that incident. Building
+# once on Jenkins and shipping the already-built image avoids repeating it.
+# IMAGE_TAG defaults to "latest" (what a plain local `docker compose up
+# --build` and the "Build Docker Image" stage both produce); the "Run
+# Playwright Tests" stage overrides it to a throwaway ci-<build> tag so its
+# CI-only image (built with host.docker.internal URLs baked in) never
+# clobbers the "latest" tag the Deploy stage ships.
 services:
   mysql:
     build: ./database
+    image: taskflow-mysql:${IMAGE_TAG:-latest}
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: changeme
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-changeme}
     # No host port published: only the `backend` service needs to reach
     # this (over the internal Docker network, as host "mysql") — matches
     # the NFR "DB not exposed to internet", and avoids clashing with any
@@ -31,13 +53,14 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-pchangeme"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_PASSWORD:-changeme}"]
       interval: 5s
       timeout: 5s
       retries: 20
 
   backend:
     build: ./backend
+    image: taskflow-backend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       mysql:
@@ -47,24 +70,28 @@ services:
       DB_HOST: mysql
       DB_PORT: 3306
       DB_USER: root
-      DB_PASSWORD: changeme
+      DB_PASSWORD: ${DB_PASSWORD:-changeme}
       DB_NAME: task_manager_db
-      JWT_SECRET: dev_only_change_me_in_real_deployment
+      JWT_SECRET: ${JWT_SECRET:-dev_only_change_me_in_real_deployment}
       JWT_EXPIRES_IN: 1d
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     ports:
-      - "5000:5000"
+      # host-ip:host-port:container-port — BACKEND_BIND lets production bind
+      # this to 127.0.0.1 only (so Nginx is the sole public entry point)
+      # without changing local dev's 0.0.0.0 default.
+      - "${BACKEND_BIND:-0.0.0.0}:5000:5000"
 
   frontend:
     build:
       context: ./frontend
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:5000/api}
+    image: taskflow-frontend:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "3000:80"
+      - "${FRONTEND_BIND:-0.0.0.0}:3000:80"
 
 volumes:
   mysql_data:
