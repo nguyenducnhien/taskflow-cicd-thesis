@@ -1,0 +1,42 @@
+# Runs Prometheus + Grafana locally — separate from the app's own
+# docker-compose.yml and jenkins/docker-compose.yml, same "each concern
+# gets its own compose file" pattern used throughout this project. See
+# prometheus/prometheus.yml for why these run here instead of on the AWS
+# EC2 instance they monitor.
+#
+# Before first run: copy prometheus/metrics_password.txt.example to
+# prometheus/metrics_password.txt and put the real metrics basic-auth
+# password in it (the same one set on the EC2 Nginx htpasswd file).
+#
+# Start with: docker compose -f monitoring/docker-compose.yml up -d
+# Prometheus UI: http://localhost:9090  Grafana: http://localhost:3001
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/metrics_password.txt:/run/secrets/metrics_password:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      # Dev-only default for this single-user local instance — change on
+      # first login (Grafana prompts for this automatically).
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+    ports:
+      - "3001:3000"
+
+volumes:
+  prometheus_data:
+  grafana_data:

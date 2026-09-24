@@ -1,0 +1,40 @@
+# Scrapes the AWS EC2 production instance remotely over HTTPS, instead of
+# running Prometheus/Grafana ON that instance — see project notes: the
+# instance is a free-tier 1GB-RAM box that already suffered a real OOM-kill
+# once, and Prometheus + Grafana + cAdvisor together would add several
+# hundred MB more. node_exporter and cAdvisor (lightweight, ~30-50MB
+# combined) run on EC2; the heavier Prometheus/Grafana pair runs here
+# instead and scrapes those over the network, through Nginx (basic-auth
+# protected — see /node-metrics, /container-metrics, /app-metrics in
+# ~/taskflow's nginx config on the server).
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'node'
+    scheme: https
+    metrics_path: /node-metrics
+    basic_auth:
+      username: prometheus
+      password_file: /run/secrets/metrics_password
+    static_configs:
+      - targets: ['52.76.105.50.sslip.io']
+
+  - job_name: 'container'
+    scheme: https
+    metrics_path: /container-metrics
+    basic_auth:
+      username: prometheus
+      password_file: /run/secrets/metrics_password
+    static_configs:
+      - targets: ['52.76.105.50.sslip.io']
+
+  - job_name: 'app'
+    scheme: https
+    metrics_path: /app-metrics
+    basic_auth:
+      username: prometheus
+      password_file: /run/secrets/metrics_password
+    static_configs:
+      - targets: ['52.76.105.50.sslip.io']

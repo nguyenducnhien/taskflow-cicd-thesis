@@ -1,0 +1,54 @@
+{
+  "title": "Container",
+  "uid": "taskflow-container",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Container Status (last seen < 30s ago)",
+      "type": "table",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "(time() - container_last_seen{image=~\"docker.io/library/taskflow.*\"}) < 30",
+          "legendFormat": "{{image}}",
+          "format": "table",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "CPU Usage per Container",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{image=~\"docker.io/library/taskflow.*\"}[5m]) * 100",
+          "legendFormat": "{{image}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Memory Usage per Container",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "targets": [
+        {
+          "expr": "container_memory_usage_bytes{image=~\"docker.io/library/taskflow.*\"}",
+          "legendFormat": "{{image}}"
+        }
+      ]
+    }
+  ]
+}

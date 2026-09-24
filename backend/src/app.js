@@ -10,8 +10,14 @@ const labelRoutes = require('./modules/labels/label.routes');
 const notificationRoutes = require('./modules/notifications/notification.routes');
 const dashboardRoutes = require('./modules/dashboard/dashboard.routes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
+const { register, metricsMiddleware } = require('./middleware/metrics');
 
 const app = express();
+
+// Records request count + duration for every request (see middleware/
+// metrics.js). Placed before the routes below so it wraps all of them,
+// /api/health included.
+app.use(metricsMiddleware);
 
 // CORS: the React frontend (e.g. http://localhost:3000) and this API
 // (e.g. http://localhost:5000) are different origins (different port), so
@@ -24,6 +30,15 @@ app.use(express.json());
 
 app.get('/api/health', (req, res) => {
   res.json({ success: true, data: { status: 'ok' }, error: null });
+});
+
+// Not under /api: this is an infra/ops concern (scraped by Prometheus), not
+// a REST resource the frontend calls. No auth here — this port (5000) is
+// only reachable from localhost (see docker-compose.yml BACKEND_BIND); the
+// public-facing access control lives in Nginx (see project notes).
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', register.contentType);
+  res.end(await register.metrics());
 });
 
 app.use('/api/auth', authRoutes);
